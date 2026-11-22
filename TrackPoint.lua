@@ -45,9 +45,6 @@ end
 local group, inputs = findEffect()
 
 local function status(message)
-    if inputs.TrackStatus then
-        pcall(function() group:SetInput("TrackStatus", message) end)
-    end
     print(message)
     local file = io.open(root .. "PointInsert.log", "a")
     if file then
@@ -61,7 +58,7 @@ local function findTrackControls()
         local fields = inputsFor(child)
         if fields.TrackX and fields.TrackY and fields.TrackReady then return child, fields end
     end
-    error("Reapply Tracking Point to load the Bake tracking control.", 0)
+    error("Could not find the tracking animation controls.", 0)
 end
 
 local function capture(source, first, last, folder)

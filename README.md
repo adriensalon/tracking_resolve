@@ -9,7 +9,7 @@
 Run the installer from this folder.
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File .\InstallTrackingPoint.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File .\InstallTracking.ps1
 ```
 
 The installer copies both effects to `%APPDATA%\Blackmagic Design\DaVinci Resolve\Support\Fusion\Templates\Edit\Effects` and the Lua scripts to `%LOCALAPPDATA%\TrackingResolve`. Restart Resolve after installation.

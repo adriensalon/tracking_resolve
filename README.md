@@ -4,6 +4,8 @@
 
 **Tracking Surface** tracks four corners on clip A and uses a perspective corner pin to fit clip B to the moving surface.
 
+https://github.com/user-attachments/assets/0c493607-7a68-4c53-86b2-6c22bbcc4709
+
 ## Install on Windows
 
 Run the installer from this folder.

@@ -1,0 +1,393 @@
+{
+    Tools = ordered() {
+        TrackingPointEffect = GroupOperator {
+            Inputs = ordered() {
+                MainInput1 = InstanceInput { SourceOp = "AInput", Source = "Input", },
+                InsertClip = InstanceInput {
+                    SourceOp = "BSource", Source = "ClipName", Name = "Insert Clip (Media Pool)", DefaultText = "None",
+                },
+                EnableInsert = InstanceInput { SourceOp = "InsertWindow", Source = "EnableInsert", },
+                InsertStart = InstanceInput { SourceOp = "InsertWindow", Source = "InsertStart", },
+                InsertDuration = InstanceInput { SourceOp = "InsertWindow", Source = "InsertDuration", Default = 24, },
+                SourceIn = InstanceInput { SourceOp = "InsertWindow", Source = "SourceIn", },
+                CompositeMode = InstanceInput { SourceOp = "InsertWindow", Source = "CompositeMode", },
+                Opacity = InstanceInput { SourceOp = "Composite", Source = "Blend", Name = "Opacity", Default = 1, },
+                PreviewA = InstanceInput { SourceOp = "TrackingPreview", Source = "PreviewA", },
+                TrackingControls = InstanceInput { SourceOp = "TrackingPreview", Source = "TrackingControls", Page = "Controls", },
+                PatternCenter = InstanceInput { SourceOp = "PatternBox", Source = "Center", Name = "Pattern Center", },
+                PatternWidth = InstanceInput { SourceOp = "PatternBox", Source = "Width", Name = "Pattern Width", Default = 0.08, },
+                PatternHeight = InstanceInput { SourceOp = "PatternBox", Source = "Height", Name = "Pattern Height", Default = 0.08, },
+                SearchWidth = InstanceInput { SourceOp = "SearchBox", Source = "Width", Name = "Search Width", Default = 0.2, },
+                SearchHeight = InstanceInput { SourceOp = "SearchBox", Source = "Height", Name = "Search Height", Default = 0.2, },
+                TrackForward = InstanceInput { SourceOp = "TrackControls", Source = "TrackForward", },
+            },
+            Outputs = {
+                MainOutput1 = InstanceOutput { SourceOp = "TrackingPreview", Source = "Output", },
+            },
+            ViewInfo = GroupInfo { Pos = { 0, 0 }, },
+            Tools = ordered() {
+                AInput = Transform {
+                    ViewInfo = OperatorInfo { Pos = { 0, 0 }, },
+                },
+                BSource = MediaIn {
+                    Inputs = {
+                        MediaSource = Input { Value = FuID { "MediaPool" }, },
+                    },
+                    ViewInfo = OperatorInfo { Pos = { 0, 66 }, },
+                },
+                BTiming = TimeStretcher {
+                    Inputs = {
+                        Input = Input { SourceOp = "BSource", Source = "Output", },
+                        InterpolateBetweenFrames = Input { Value = 0, },
+                        SourceTime = Input {
+                            Expression = "math.min(math.max(BSource.GlobalIn, BSource.GlobalOut), BSource.GlobalIn + InsertWindow.SourceIn + math.max(0, math.min(time - comp.RenderStart - InsertWindow.InsertStart, InsertWindow.InsertDuration - 1)))",
+                        },
+                    },
+                    ViewInfo = OperatorInfo { Pos = { 110, 66 }, },
+                },
+                BAnchorOffset = Transform {
+                    Inputs = {
+                        Input = Input { SourceOp = "BTiming", Source = "Output", },
+                        Center = Input { Value = { 1, 1 }, },
+                    },
+                    ViewInfo = OperatorInfo { Pos = { 220, 66 }, },
+                },
+                Composite = Merge {
+                    Inputs = {
+                        Background = Input { SourceOp = "AInput", Source = "Output", },
+                        Foreground = Input { SourceOp = "BAnchorOffset", Source = "Output", },
+                        Center = Input {
+                            Expression = "Point(iif(TrackControls.TrackReady > 0.5, TrackControls.TrackX, PatternBox.Center.X), iif(TrackControls.TrackReady > 0.5, TrackControls.TrackY, PatternBox.Center.Y))",
+                        },
+                        ApplyMode = Input {
+                            Value = FuID { "Normal" },
+                            Expression = [[
+                                ({
+                                    [0] = "Normal", [2] = "Color", [3] = "ColorBurn", [4] = "ColorDodge",
+                                    [5] = "Darken", [6] = "DarkerColor", [7] = "Difference", [9] = "Exclusion",
+                                    [11] = "HardLight", [12] = "Hue", [13] = "Lighten", [14] = "LighterColor",
+                                    [15] = "LinearBurn", [16] = "LinearDodge", [17] = "LinearLight",
+                                    [18] = "Luminosity", [19] = "Multiply", [20] = "Overlay", [21] = "PinLight",
+                                    [22] = "Saturation", [23] = "Screen", [24] = "SoftLight", [26] = "VividLight"
+                                })[InsertWindow.CompositeMode] or "Normal"
+                            ]],
+                        },
+                        Blend = Input { Value = 1, },
+                    },
+                    ViewInfo = OperatorInfo { Pos = { 330, 66 }, },
+                },
+                TransparentA = BrightnessContrast {
+                    Inputs = {
+                        Input = Input { SourceOp = "AInput", Source = "Output", },
+                        Alpha = Input { Value = 1, },
+                        Gain = Input { Value = 0, },
+                    },
+                    ViewInfo = OperatorInfo { Pos = { 110, 132 }, },
+                },
+                PlacedB = Merge {
+                    Inputs = {
+                        Background = Input { SourceOp = "TransparentA", Source = "Output", },
+                        Foreground = Input { SourceOp = "BAnchorOffset", Source = "Output", },
+                        Center = Input { Expression = "Composite.Center", },
+                    },
+                    ViewInfo = OperatorInfo { Pos = { 330, 132 }, },
+                },
+                AlternateComposite = Custom {
+                    Inputs = {
+                        Image1 = Input { SourceOp = "AInput", Source = "Output", },
+                        Image2 = Input { SourceOp = "PlacedB", Source = "Output", },
+                        NumberIn1 = Input { Expression = "InsertWindow.CompositeMode", },
+                        NumberIn2 = Input { Expression = "Composite.Blend", },
+                        -- Setup values select the alternate blend or matte for this frame.
+                        Setup1 = Input { Value = "n1 == 1", },
+                        Setup2 = Input { Value = "n1 == 25", },
+                        Setup3 = Input { Value = "n1 == 8", },
+                        Setup4 = Input { Value = "n1 >= 27", },
+                        Setup5 = Input { Value = "n1 == 28", },
+                        Setup6 = Input { Value = "n1 == 29", },
+                        Setup7 = Input { Value = "n1 == 30", },
+                        Setup8 = Input { Value = "n1 == 31", },
+                        -- i1: A's luma. i2/i3: reciprocal alpha. i4: the selected matte weight.
+                        Intermediate1 = Input {
+                            Value = "min(1, max(0, 0.2126*r1 + 0.7152*g1 + 0.0722*b1))",
+                        },
+                        Intermediate2 = Input { Value = "1/max(a1, 0.000001)", },
+                        Intermediate3 = Input { Value = "1/max(a2, 0.000001)", },
+                        Intermediate4 = Input { Value = "if(s5, a1, if(s6, 1-a1, if(s7, i1, if(s8, 1-i1, 1))))", },
+                        -- Blend the straight colors in the overlap, then restore premultiplied RGBA.
+                        RedExpression = Input {
+                            Value = [[
+                                r1 + n2*(if(s4, r2*i4, if(s1, r1+r2,
+                                    r1*(1-a2) + r2*(1-a1) + a1*a2*if(s2, r2*i3-r1*i2,
+                                        if(s3, if(abs(r2*i3)<0.000001, if(abs(r1*i2)<0.000001, 0, 1),
+                                            (r1*i2)/if(abs(r2*i3)<0.000001, 1, r2*i3)),
+                                            if(r1*i2+r2*i3>=1, 1, 0))))) - r1)
+                            ]],
+                        },
+                        GreenExpression = Input {
+                            Value = [[
+                                g1 + n2*(if(s4, g2*i4, if(s1, g1+g2,
+                                    g1*(1-a2) + g2*(1-a1) + a1*a2*if(s2, g2*i3-g1*i2,
+                                        if(s3, if(abs(g2*i3)<0.000001, if(abs(g1*i2)<0.000001, 0, 1),
+                                            (g1*i2)/if(abs(g2*i3)<0.000001, 1, g2*i3)),
+                                            if(g1*i2+g2*i3>=1, 1, 0))))) - g1)
+                            ]],
+                        },
+                        BlueExpression = Input {
+                            Value = [[
+                                b1 + n2*(if(s4, b2*i4, if(s1, b1+b2,
+                                    b1*(1-a2) + b2*(1-a1) + a1*a2*if(s2, b2*i3-b1*i2,
+                                        if(s3, if(abs(b2*i3)<0.000001, if(abs(b1*i2)<0.000001, 0, 1),
+                                            (b1*i2)/if(abs(b2*i3)<0.000001, 1, b2*i3)),
+                                            if(b1*i2+b2*i3>=1, 1, 0))))) - b1)
+                            ]],
+                        },
+                        AlphaExpression = Input { Value = "a1 + n2*(if(s4, a2*i4, a1+a2*(1-a1)) - a1)", },
+                    },
+                    ViewInfo = OperatorInfo { Pos = { 440, 132 }, },
+                },
+                CompositeOutput = Switch {
+                    Inputs = {
+                        NumberOfInputs = Input { Value = 2, },
+                        Input0 = Input { SourceOp = "Composite", Source = "Output", },
+                        Input1 = Input { SourceOp = "AlternateComposite", Source = "Output", },
+                        Source = Input {
+                            Expression = "({ [1] = 1, [8] = 1, [10] = 1, [25] = 1, [27] = 1, [28] = 1, [29] = 1, [30] = 1, [31] = 1 })[InsertWindow.CompositeMode] or 0",
+                        },
+                    },
+                    ViewInfo = OperatorInfo { Pos = { 440, 66 }, },
+                },
+                InsertWindow = Dissolve {
+                    Inputs = {
+                        Background = Input { SourceOp = "AInput", Source = "Output", },
+                        Foreground = Input { SourceOp = "CompositeOutput", Source = "Output", },
+                        Mix = Input {
+                            Expression = "iif(EnableInsert > 0.5, iif(time >= comp.RenderStart + InsertStart, iif(time < comp.RenderStart + InsertStart + InsertDuration, 1, 0), 0), 0)",
+                        },
+                        EnableInsert = Input { Value = 0, },
+                        InsertStart = Input { Value = 0, },
+                        InsertDuration = Input { Value = 24, },
+                        SourceIn = Input { Value = 0, },
+                        CompositeMode = Input { Value = 0, },
+                    },
+                    UserControls = ordered() {
+                        EnableInsert = {
+                            LINKS_Name = "Enable Insert", LINKID_DataType = "Number",
+                            INPID_InputControl = "CheckboxControl", INP_Default = 0,
+                        },
+                        InsertStart = {
+                            LINKS_Name = "Start on A (frames)", LINKID_DataType = "Number",
+                            INPID_InputControl = "ScrewControl", INP_Integer = true,
+                            INP_Default = 0, INP_MinAllowed = 0, INP_MinScale = 0, INP_MaxScale = 240,
+                        },
+                        InsertDuration = {
+                            LINKS_Name = "Duration (frames)", LINKID_DataType = "Number",
+                            INPID_InputControl = "ScrewControl", INP_Integer = true,
+                            INP_Default = 24, INP_MinAllowed = 0, INP_MinScale = 0, INP_MaxScale = 240,
+                        },
+                        SourceIn = {
+                            LINKS_Name = "Source In on B (frames)", LINKID_DataType = "Number",
+                            INPID_InputControl = "ScrewControl", INP_Integer = true,
+                            INP_Default = 0, INP_MinAllowed = 0, INP_MinScale = 0, INP_MaxScale = 240,
+                        },
+                        CompositeMode = {
+                            LINKS_Name = "Composite Mode", LINKID_DataType = "Number",
+                            INPID_InputControl = "ComboControl", INP_Default = 0, INP_Integer = true,
+                            { CCS_AddString = "Normal", },
+                            { CCS_AddString = "Add", },
+                            { CCS_AddString = "Color", },
+                            { CCS_AddString = "Color Burn", },
+                            { CCS_AddString = "Color Dodge", },
+                            { CCS_AddString = "Darken", },
+                            { CCS_AddString = "Darker Color", },
+                            { CCS_AddString = "Difference", },
+                            { CCS_AddString = "Divide", },
+                            { CCS_AddString = "Exclusion", },
+                            { CCS_AddString = "Hard Mix", },
+                            { CCS_AddString = "Hardlight", },
+                            { CCS_AddString = "Hue", },
+                            { CCS_AddString = "Lighten", },
+                            { CCS_AddString = "Lighter Color", },
+                            { CCS_AddString = "Linear Burn", },
+                            { CCS_AddString = "Linear Dodge", },
+                            { CCS_AddString = "Linear Light", },
+                            { CCS_AddString = "Luminosity", },
+                            { CCS_AddString = "Multiply", },
+                            { CCS_AddString = "Overlay", },
+                            { CCS_AddString = "Pin Light", },
+                            { CCS_AddString = "Saturation", },
+                            { CCS_AddString = "Screen", },
+                            { CCS_AddString = "Softlight", },
+                            { CCS_AddString = "Subtract", },
+                            { CCS_AddString = "Vivid Light", },
+                            { CCS_AddString = "Foreground", },
+                            { CCS_AddString = "Alpha", },
+                            { CCS_AddString = "Inverted Alpha", },
+                            { CCS_AddString = "Lum", },
+                            { CCS_AddString = "Inverted Lum", },
+                        },
+                    },
+                    ViewInfo = OperatorInfo { Pos = { 440, 0 }, },
+                },
+                PatternBox = RectangleMask {
+                    Inputs = {
+                        UseFrameFormatSettings = Input { Value = 1, },
+                        Center = Input { Value = { 0.5, 0.5 }, },
+                        Width = Input { Value = 0.08, },
+                        Height = Input { Value = 0.08, },
+                        Solid = Input { Value = 0, },
+                        BorderWidth = Input { Value = 0.003, },
+                    },
+                    ViewInfo = OperatorInfo { Pos = { 110, -132 }, },
+                },
+                SearchBox = RectangleMask {
+                    Inputs = {
+                        UseFrameFormatSettings = Input { Value = 1, },
+                        Center = Input { Expression = "PatternBox.Center", },
+                        Width = Input { Value = 0.2, },
+                        Height = Input { Value = 0.2, },
+                        Solid = Input { Value = 0, },
+                        BorderWidth = Input { Value = 0.002, },
+                    },
+                    ViewInfo = OperatorInfo { Pos = { 110, -198 }, },
+                },
+                PatternOutline = Background {
+                    Inputs = {
+                        UseFrameFormatSettings = Input { Value = 1, },
+                        TopLeftRed = Input { Value = 0.12, },
+                        TopLeftGreen = Input { Value = 1, },
+                        TopLeftBlue = Input { Value = 0.24, },
+                        TopLeftAlpha = Input { Value = 1, },
+                        EffectMask = Input { SourceOp = "PatternBox", Source = "Mask", },
+                    },
+                    ViewInfo = OperatorInfo { Pos = { 220, -132 }, },
+                },
+                SearchOutline = Background {
+                    Inputs = {
+                        UseFrameFormatSettings = Input { Value = 1, },
+                        TopLeftRed = Input { Value = 1, },
+                        TopLeftGreen = Input { Value = 0.72, },
+                        TopLeftBlue = Input { Value = 0.1, },
+                        TopLeftAlpha = Input { Value = 1, },
+                        EffectMask = Input { SourceOp = "SearchBox", Source = "Mask", },
+                    },
+                    ViewInfo = OperatorInfo { Pos = { 220, -198 }, },
+                },
+                SearchPreview = Merge {
+                    Inputs = {
+                        Background = Input { SourceOp = "AInput", Source = "Output", },
+                        Foreground = Input { SourceOp = "SearchOutline", Source = "Output", },
+                    },
+                    ViewInfo = OperatorInfo { Pos = { 330, -132 }, },
+                },
+                PatternPreview = Merge {
+                    Inputs = {
+                        Background = Input { SourceOp = "SearchPreview", Source = "Output", },
+                        Foreground = Input { SourceOp = "PatternOutline", Source = "Output", },
+                    },
+                    ViewInfo = OperatorInfo { Pos = { 440, -132 }, },
+                },
+                TrackedPointMask = EllipseMask {
+                    Inputs = {
+                        UseFrameFormatSettings = Input { Value = 1, },
+                        Center = Input { Expression = "Composite.Center", },
+                        Width = Input { Value = 0.014, },
+                        Height = Input { Value = 0.014, },
+                    },
+                    ViewInfo = OperatorInfo { Pos = { 110, -264 }, },
+                },
+                TrackedPointColor = Background {
+                    Inputs = {
+                        UseFrameFormatSettings = Input { Value = 1, },
+                        TopLeftRed = Input { Value = 0, },
+                        TopLeftGreen = Input { Value = 1, },
+                        TopLeftBlue = Input { Value = 1, },
+                        TopLeftAlpha = Input { Value = 1, },
+                        EffectMask = Input { SourceOp = "TrackedPointMask", Source = "Mask", },
+                    },
+                    ViewInfo = OperatorInfo { Pos = { 220, -264 }, },
+                },
+                TrackingResult = Merge {
+                    Inputs = {
+                        Background = Input { SourceOp = "PatternPreview", Source = "Output", },
+                        Foreground = Input { SourceOp = "TrackedPointColor", Source = "Output", },
+                    },
+                    ViewInfo = OperatorInfo { Pos = { 550, -132 }, },
+                },
+                TrackingPreview = Switch {
+                    Inputs = {
+                        NumberOfInputs = Input { Value = 2, },
+                        Input0 = Input { SourceOp = "InsertWindow", Source = "Output", },
+                        Input1 = Input { SourceOp = "TrackingResult", Source = "Output", },
+                        Source = Input { Expression = "iif(PreviewA > 0.5, 1, 0)", },
+                        PreviewA = Input { Value = 0, },
+                        TrackingControls = Input { Expression = "iif(PreviewA > 0.5, 1, 0)", },
+                    },
+                    UserControls = ordered() {
+                        PreviewA = {
+                            LINKS_Name = "Preview A for Tracking", LINKID_DataType = "Number",
+                            INPID_InputControl = "CheckboxControl", INP_Default = 0,
+                        },
+                        TrackingControls = {
+                            LINKS_Name = "", LINKID_DataType = "Number",
+                            INPID_InputControl = "LabelControl", INP_Default = 0,
+                            INP_External = false, INP_Passive = true, IC_Visible = false,
+                            -- The nest covers Pattern Center through Bake tracking in the Inspector.
+                            LBLC_DropDownButton = true, LBLC_NumInputs = 6, LBLC_NestLevel = 1,
+                        },
+                    },
+                    ViewInfo = OperatorInfo { Pos = { 550, 0 }, },
+                },
+                TrackControls = Background {
+                    Inputs = {
+                        TrackX = Input { SourceOp = "TrackXSpline", Source = "Value", },
+                        TrackY = Input { SourceOp = "TrackYSpline", Source = "Value", },
+                        TrackReady = Input { Value = 0, },
+                    },
+                    UserControls = ordered() {
+                        TrackForward = {
+                            LINKS_Name = "Bake tracking", LINKID_DataType = "Number",
+                            INPID_InputControl = "ButtonControl", INP_Default = 0,
+                            BTNCS_Execute = [[
+                                local c = comp or composition or (fusion and fusion:GetCurrentComp())
+                                local owner = tool or (self and self:GetTool())
+                                local appData = os.getenv("LOCALAPPDATA")
+                                if not c or not appData then return end
+                                local script = appData .. "\\TrackingResolve\\TrackPoint.lua"
+                                local file = io.open(script, "r")
+                                if not file then
+                                    print("Tracking script is missing. Reinstall Tracking Point.")
+                                    return
+                                end
+                                file:close()
+                                local target = owner
+                                if owner and owner:GetAttrs().TOOLS_RegID == "Background" then
+                                    target = owner.ParentTool
+                                end
+                                c:SetData("TrackingResolve.TrackingPoint.Target", target and target.Name or false)
+                                c:RunScript(script)
+                            ]],
+                        },
+                        TrackX = {
+                            LINKID_DataType = "Number", INPID_InputControl = "SliderControl", INP_Default = 0.5,
+                        },
+                        TrackY = {
+                            LINKID_DataType = "Number", INPID_InputControl = "SliderControl", INP_Default = 0.5,
+                        },
+                        TrackReady = {
+                            LINKID_DataType = "Number", INPID_InputControl = "CheckboxControl", INP_Default = 0,
+                        },
+                    },
+                    ViewInfo = OperatorInfo { Pos = { 660, 0 }, },
+                },
+                TrackXSpline = BezierSpline {
+                    KeyFrames = { [0] = { 0.5, Flags = { Linear = true } }, },
+                },
+                TrackYSpline = BezierSpline {
+                    KeyFrames = { [0] = { 0.5, Flags = { Linear = true } }, },
+                },
+            },
+        },
+    },
+    ActiveTool = "TrackingPointEffect",
+}

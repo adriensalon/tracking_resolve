@@ -4,8 +4,10 @@ $effectsDirectory = Join-Path $env:APPDATA 'Blackmagic Design\DaVinci Resolve\Su
 $trackingDirectory = Join-Path $env:LOCALAPPDATA 'TrackingResolve'
 $files = [ordered]@{
     'PointTracking.lua' = Join-Path $trackingDirectory 'PointTracking.lua'
+    'SurfaceTracking.lua' = Join-Path $trackingDirectory 'SurfaceTracking.lua'
     'TrackPoint.lua' = Join-Path $trackingDirectory 'TrackPoint.lua'
     'TrackingPoint.setting' = Join-Path $effectsDirectory 'Tracking Point.setting'
+    'TrackingSurface.setting' = Join-Path $effectsDirectory 'Tracking Surface.setting'
 }
 
 foreach ($name in $files.Keys) {
@@ -19,4 +21,4 @@ foreach ($name in $files.Keys) {
     Copy-Item -LiteralPath (Join-Path $PSScriptRoot $name) -Destination $files[$name] -Force
 }
 
-Write-Host 'Installed Tracking Point. Restart Resolve to refresh the Effects Library.'
+Write-Host 'Installed Tracking Point and Tracking Surface. Restart Resolve to refresh the Effects Library.'

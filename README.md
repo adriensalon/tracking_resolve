@@ -1,6 +1,8 @@
-# Tracking Point for DaVinci Resolve
+# Tracking effects for DaVinci Resolve
 
 **Tracking Point** is a Fusion effect for the Edit page. It tracks a feature on clip A and uses that motion to place a Media Pool clip or timeline (B) over it.
+
+**Tracking Surface** tracks four corners on clip A and uses a perspective corner pin to fit clip B to the moving surface.
 
 ## Install on Windows
 
@@ -10,7 +12,7 @@ Run the installer from this folder.
 powershell -NoProfile -ExecutionPolicy Bypass -File .\InstallTrackingPoint.ps1
 ```
 
-The installer copies `Tracking Point.setting` to `%APPDATA%\Blackmagic Design\DaVinci Resolve\Support\Fusion\Templates\Edit\Effects` and the Lua scripts to `%LOCALAPPDATA%\TrackingResolve`. Restart Resolve after installation.
+The installer copies both effects to `%APPDATA%\Blackmagic Design\DaVinci Resolve\Support\Fusion\Templates\Edit\Effects` and the Lua scripts to `%LOCALAPPDATA%\TrackingResolve`. Restart Resolve after installation.
 
 ## Use Tracking Point
 
@@ -20,4 +22,11 @@ The installer copies `Tracking Point.setting` to `%APPDATA%\Blackmagic Design\Da
 4. Drop a clip or timeline from the Media Pool onto **Insert Clip (Media Pool)**. Turn on **Enable Insert** and turn off **Preview A for Tracking** to see the composite.
 5. Use **Start on A (frames)** and **Duration (frames)** to set where B appears on A. **Source In on B (frames)** selects B’s starting frame. You can change these values after baking. Use **Composite Mode** and **Opacity** to adjust how B blends with A.
 
-Tracking messages are written to `%LOCALAPPDATA%\TrackingResolve\PointInsert.log`.
+A dialog reports the reason if a bake fails. Tracking messages are written to `%LOCALAPPDATA%\TrackingResolve\PointInsert.log`.
+
+## Use Tracking Surface
+
+1. Drag **Tracking Surface** from **Effects Library → Toolbox → Effects** onto clip A. Turn on **Preview A for Tracking** in the effect's Inspector.
+2. At A's first frame, place **Top Left**, **Top Right**, **Bottom Right**, and **Bottom Left** over the corresponding corners of the same flat surface. Pick distinct details that stay visible. The cyan outline shows the surface, and the pattern and search sizes apply to all four corners.
+3. Click **Bake tracking** to track all four corners across A. If a corner is lost, the effect looks for other visible features inside the surface to recover its motion. A dialog reports a recovered or failed bake. A failed bake preserves the last successful track. Scrub with **Preview A for Tracking** on to see the cyan corner markers move. The full log is at `%LOCALAPPDATA%\TrackingResolve\SurfaceInsert.log`.
+4. Drop a Media Pool clip or timeline onto **Insert Clip (Media Pool)**, turn on **Enable Insert**, and turn off **Preview A for Tracking**. The entire selected image maps into the four corners. Use the same timing, composite mode, and opacity controls as Tracking Point.
